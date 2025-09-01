@@ -1,37 +1,24 @@
 package com.yourcompany.course.model;
 
+/**
+ * FINAL REFACTORED VERSION - Matches the correct database schema.
+ */
 public class Teacher {
-    private Long id;
-    private String fullName;
+    private Long teacherId;
+    private String name;
     private String email;
 
-    public Teacher(Long id, String fullName, String email) {
-        this.id = id;
-        this.fullName = fullName;
+    public Teacher(Long teacherId, String name, String email) {
+        this.teacherId = teacherId;
+        this.name = name;
         this.email = email;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    // Getters and Setters
+    public Long getTeacherId() { return teacherId; }
+    public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

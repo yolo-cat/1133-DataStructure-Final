@@ -4,123 +4,85 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- 1. 專案基本資訊 (已根據需求文件調整 groupId) -->
-    <groupId>com.yourcompany.datagen</groupId>
-    <artifactId>course-enrollment-system</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>com.yourcompany.course</groupId>
+    <artifactId>course-enrollment-system-final</artifactId>
+    <version>1.0.0</version>
 
-    <!-- 2. 專案屬性設定 (已更新為穩定版本) -->
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
 
-        <!-- 依賴版本統一管理 -->
-        <mariadb.version>3.4.0</mariadb.version> <!-- 更新 -->
-        <mysql.version>8.0.33</mysql.version>
-        <hikaricp.version>5.1.0</hikaricp.version>
+        <!-- Dependency Versions -->
+        <mariadb.version>3.1.4</mariadb.version>
+        <hikaricp.version>5.0.1</hikaricp.version>
         <faker.version>1.0.2</faker.version>
-        <slf4j.version>2.0.13</slf4j.version>
-        <logback.version>1.5.6</logback.version>
-        <jmh.version>1.37</jmh.version>
+        <slf4j.version>2.0.9</slf4j.version>
+        <logback.version>1.4.14</logback.version>
     </properties>
 
-    <!-- 3. 專案依賴管理 -->
     <dependencies>
-
-        <!-- =============================================================== -->
-        <!-- 任務模組 1 & 2: 基礎建設、資料生成、資料庫驅動                  -->
-        <!-- =============================================================== -->
-
-        <!-- MariaDB 資料庫驅動 (若您使用 MariaDB，請保留此項) -->
+        <!-- MariaDB JDBC Driver -->
         <dependency>
             <groupId>org.mariadb.jdbc</groupId>
             <artifactId>mariadb-java-client</artifactId>
             <version>${mariadb.version}</version>
         </dependency>
 
-        <!--
-        MySQL 資料庫驅動 (若您使用 MySQL，請取消註解此項，並註解上面的 MariaDB)
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>${mysql.version}</version>
-        </dependency>
-        -->
-
-        <!-- HikariCP: 高效能資料庫連線池 (推薦使用) -->
+        <!-- HikariCP: High-performance JDBC connection pool -->
         <dependency>
             <groupId>com.zaxxer</groupId>
             <artifactId>HikariCP</artifactId>
             <version>${hikaricp.version}</version>
         </dependency>
 
-        <!-- Java-Faker: 生成逼真的假資料 -->
+        <!-- Java-Faker: Realistic data generation -->
         <dependency>
             <groupId>com.github.javafaker</groupId>
             <artifactId>javafaker</artifactId>
             <version>${faker.version}</version>
         </dependency>
 
-        <!-- =============================================================== -->
-        <!-- 通用模組: 日誌系統                                              -->
-        <!-- =============================================================== -->
-
-        <!-- SLF4J API (日誌門面) -->
+        <!-- SLF4J API (Logging Facade) -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
 
-        <!-- Logback (SLF4J的實現) -->
+        <!-- Logback (SLF4J Implementation) -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback.version}</version>
         </dependency>
-
-        <!-- =============================================================== -->
-        <!-- 任務模組 4: 效能測試 (進階，可選)                               -->
-        <!-- =============================================================== -->
-
-        <!-- JMH: Java 微基準測試框架 (核心) -->
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-core</artifactId>
-            <version>${jmh.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- JMH: 註解處理器 (用於生成測試程式) -->
-        <dependency>
-            <groupId>org.openjdk.jmh</groupId>
-            <artifactId>jmh-generator-annprocess</artifactId>
-            <version>${jmh.version}</version>
-            <scope>test</scope>
-        </dependency>
-
     </dependencies>
 
-    <!-- 4. 專案建構設定 (已更新插件版本) -->
     <build>
+        <!-- **FINAL FIX**: Define M4 as the single source and resource directory -->
+        <sourceDirectory>M4/src/main/java</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>M4/src/main/resources</directory>
+            </resource>
+        </resources>
+
         <plugins>
-            <!-- 設定Java編譯器版本 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                 </configuration>
             </plugin>
 
-            <!-- 打包成單一可執行JAR檔案的外掛 -->
+            <!-- Shade plugin to create a single executable JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.3</version>
+                <version>3.2.4</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -130,8 +92,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <!-- 指定主程式入口 (已根據需求文件調整) -->
-                                    <mainClass>com.yourcompany.datagen.Application</mainClass>
+                                    <mainClass>com.yourcompany.course.MainApplication</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -140,5 +101,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

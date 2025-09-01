@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * FINAL REFACTORED VERSION - Matches the correct database schema.
+ */
 public class InMemorySearchService implements SearchService {
 
     private final DataRepository dataRepository;
@@ -29,35 +32,26 @@ public class InMemorySearchService implements SearchService {
         this.dataRepository = dataRepository;
     }
 
-    /**
-     * Loads all necessary data from the database into memory to build indices.
-     * This is a time and memory consuming operation.
-     */
     public void loadData() {
-        // 1. Clear old data and measure initial memory
         clearData();
         long memoryBefore = getMemoryUsage();
 
-        // 2. Load all data from database via repository
         List<Student> allStudents = dataRepository.findAllStudents();
         List<Course> allCourses = dataRepository.findAllCourses();
         List<Enrollment> allEnrollments = dataRepository.findAllEnrollments();
 
-        // 3. Build indices using Stream API
         studentEnrollmentIndex = allEnrollments.stream()
                 .collect(Collectors.groupingBy(Enrollment::getStudentId));
 
         courseEnrollmentIndex = allEnrollments.stream()
                 .collect(Collectors.groupingBy(Enrollment::getCourseId));
 
-        // 4. Build helper caches for quick lookups
         studentDetailsCache = allStudents.stream()
-                .collect(Collectors.toMap(Student::getId, student -> student));
+                .collect(Collectors.toMap(Student::getStudentId, student -> student));
 
         courseDetailsCache = allCourses.stream()
-                .collect(Collectors.toMap(Course::getId, course -> course));
+                .collect(Collectors.toMap(Course::getCourseId, course -> course));
         
-        // 5. Measure final memory usage
         long memoryAfter = getMemoryUsage();
         this.memoryUsageBytes = memoryAfter - memoryBefore;
     }
@@ -67,7 +61,7 @@ public class InMemorySearchService implements SearchService {
         courseEnrollmentIndex = null;
         studentDetailsCache = null;
         courseDetailsCache = null;
-        System.gc(); // Suggest garbage collection
+        System.gc();
     }
 
     private long getMemoryUsage() {
@@ -105,7 +99,8 @@ public class InMemorySearchService implements SearchService {
                 .map(enrollment -> {
                     Student student = studentDetailsCache.get(enrollment.getStudentId());
                     if (student == null) return null;
-                    return new StudentResult(student.getFullName(), student.getEmail(), enrollment.getEnrollmentDate());
+                    String fullName = student.getFirstName() + " " + student.getLastName();
+                    return new StudentResult(fullName, student.getEmail(), enrollment.getEnrollmentDate());
                 })
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toList());
