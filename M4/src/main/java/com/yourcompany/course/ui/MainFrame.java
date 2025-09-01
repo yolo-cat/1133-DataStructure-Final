@@ -3,10 +3,8 @@ package com.yourcompany.course.ui;
 import com.yourcompany.course.benchmark.BenchmarkRunner;
 import com.yourcompany.course.generator.DataGenerator;
 import com.yourcompany.course.model.dto.BenchmarkResult;
-import com.yourcompany.course.repository.DataRepository;
 import com.yourcompany.course.search.InMemorySearchService;
 import com.yourcompany.course.search.SearchService;
-import com.yourcompany.course.search.SqlSearchService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -16,7 +14,7 @@ import java.util.concurrent.ExecutionException;
 
 public class MainFrame extends JFrame {
 
-    // Services and Repositories
+    // Services and Generators (Injected)
     private final SearchService sqlService;
     private final InMemorySearchService inMemoryService;
     private final DataGenerator dataGenerator;
@@ -29,20 +27,20 @@ public class MainFrame extends JFrame {
     private JTextField idField;
     private JComboBox<String> scaleComboBox;
 
-    public MainFrame() {
-        // 1. 實例化服務
-        this.sqlService = new SqlSearchService();
-        this.inMemoryService = new InMemorySearchService();
-        this.dataGenerator = new DataGenerator(new DataRepository());
+    public MainFrame(SearchService sqlService, InMemorySearchService inMemoryService, DataGenerator dataGenerator) {
+        // 1. Receive injected dependencies
+        this.sqlService = sqlService;
+        this.inMemoryService = inMemoryService;
+        this.dataGenerator = dataGenerator;
 
-        // 2. 設定主視窗
-        setTitle("課程選課系統效能測試");
+        // 2. Setup main window
+        setTitle("課程選課系統效能測試 (專案總負責人整合版)");
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        // 3. 建立並添加元件
+        // 3. Create and add components
         JPanel topPanel = new JPanel();
         topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
         topPanel.add(createDataGenerationPanel());
@@ -52,11 +50,9 @@ public class MainFrame extends JFrame {
         add(createResultPanel(), BorderLayout.CENTER);
         add(createStatusPanel(), BorderLayout.SOUTH);
         add(createSchemeSelectionPanel(), BorderLayout.WEST);
-
-        // 4. 載入初始資料
-        loadInMemoryData();
     }
 
+    // ... [Rest of the UI methods remain the same] ...
     private JPanel createDataGenerationPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
         panel.setBorder(BorderFactory.createTitledBorder("資料生成"));
@@ -140,13 +136,14 @@ public class MainFrame extends JFrame {
         if (selected.equals("10萬")) scale = 100000;
         if (selected.equals("100萬")) scale = 1000000;
 
-        resultArea.setText(""); // 清空日誌區域
+        resultArea.setText(""); // Clear log area
         statusLabel.setText("正在生成資料，請查看日誌輸出...");
 
         int finalScale = scale;
         new SwingWorker<Void, String>() {
             @Override
             protected Void doInBackground() throws Exception {
+                // The DataGenerator is now injected
                 dataGenerator.generate(finalScale, this::publish);
                 return null;
             }
@@ -161,7 +158,7 @@ public class MainFrame extends JFrame {
             @Override
             protected void done() {
                 statusLabel.setText("資料生成完畢。現在開始自動載入記憶體資料...");
-                loadInMemoryData(); // 生成後自動重新載入
+                loadInMemoryData(); // Automatically reload after generation
             }
         }.execute();
     }
@@ -170,16 +167,20 @@ public class MainFrame extends JFrame {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                resultArea.append("\n開始將資料載入到記憶體 (HashMap)...
-");
+                publishAndAppend("\n開始將資料載入到記憶體 (HashMap)...");
                 inMemoryService.loadData();
                 return null;
             }
 
             @Override
             protected void done() {
-                resultArea.append("記憶體資料載入完成！\n");
+                long memUsageMB = inMemoryService.getMemoryUsageBytes() / (1024 * 1024);
+                publishAndAppend(String.format("記憶體資料載入完成！額外使用記憶體: %d MB\n", memUsageMB));
                 statusLabel.setText("系統就緒。請執行查詢。");
+            }
+            
+            private void publishAndAppend(String message) {
+                 SwingUtilities.invokeLater(() -> resultArea.append(message));
             }
         }.execute();
     }
@@ -213,6 +214,7 @@ public class MainFrame extends JFrame {
             @Override
             protected List<?> doInBackground() throws Exception {
                 List<?> results;
+                // Use a larger, more realistic set for benchmarking if needed
                 List<Long> testIds = Collections.nCopies(1000, finalId);
 
                 switch (operation) {

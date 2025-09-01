@@ -2,34 +2,34 @@ package com.yourcompany.course.search;
 
 import com.yourcompany.course.model.dto.CourseResult;
 import com.yourcompany.course.model.dto.StudentResult;
+import com.yourcompany.course.repository.DataRepository;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
- * 方案A: 資料庫驅動的搜尋服務實現 (Placeholder)。
+ * 方案 A: 完全依賴資料庫 (SQL) 進行搜尋的服務實現。
  */
 public class SqlSearchService implements SearchService {
 
+    private final DataRepository dataRepository;
+
+    public SqlSearchService(DataRepository dataRepository) {
+        this.dataRepository = dataRepository;
+    }
+
     @Override
     public List<CourseResult> findCoursesByStudent(long studentId) {
-        // Placeholder: 實際應查詢資料庫
-        System.out.println("SQL Service: Finding courses for student " + studentId);
-        return Collections.emptyList();
+        return dataRepository.findCoursesByStudentId(studentId);
     }
 
     @Override
     public List<StudentResult> findStudentsByCourse(long courseId) {
-        // Placeholder: 實際應查詢資料庫
-        System.out.println("SQL Service: Finding students for course " + courseId);
-        return Collections.emptyList();
+        return dataRepository.findStudentsByCourseId(courseId);
     }
 
     @Override
     public List<CourseResult> findTop10PopularCourses() {
-        // Placeholder: 實際應查詢資料庫
-        System.out.println("SQL Service: Finding top 10 popular courses");
-        return Collections.emptyList();
+        return dataRepository.findTop10PopularCourses();
     }
 
     @Override
