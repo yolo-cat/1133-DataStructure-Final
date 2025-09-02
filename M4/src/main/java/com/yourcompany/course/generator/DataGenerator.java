@@ -20,7 +20,6 @@ import java.util.function.Consumer;
  */
 public class DataGenerator {
 
-    private static final int TEACHER_COUNT = 100;
     private static final int BATCH_SIZE = 5000;
 
     private final Faker faker = new Faker();
@@ -31,7 +30,7 @@ public class DataGenerator {
         this.repository = repository;
     }
 
-    public void generate(int scale, Consumer<String> progressConsumer) {
+    public void generate(int studentCount, int courseCount, int teacherCount, int enrollmentCount, Consumer<String> progressConsumer) {
         try {
             progressConsumer.accept("--- Starting Data Generation Process ---");
 
@@ -40,16 +39,16 @@ public class DataGenerator {
             progressConsumer.accept("Database schema is ready.");
 
             progressConsumer.accept("Step 2: Generating and inserting teachers...");
-            List<Teacher> teachers = generateAndInsertTeachers(progressConsumer);
+            List<Teacher> teachers = generateAndInsertTeachers(teacherCount, progressConsumer);
 
             progressConsumer.accept("Step 3: Generating and inserting students...");
-            List<Student> students = generateAndInsertStudents(scale, progressConsumer);
+            List<Student> students = generateAndInsertStudents(studentCount, progressConsumer);
 
             progressConsumer.accept("Step 4: Generating and inserting courses...");
-            List<Course> courses = generateAndInsertCourses(scale / 100, teachers, progressConsumer);
+            List<Course> courses = generateAndInsertCourses(courseCount, teachers, progressConsumer);
 
             progressConsumer.accept("Step 5: Generating and inserting enrollments...");
-            generateAndInsertEnrollments(scale * 5, students, courses, progressConsumer);
+            generateAndInsertEnrollments(enrollmentCount, students, courses, progressConsumer);
 
             progressConsumer.accept("--- Data Generation Process Completed Successfully! ---");
         } catch (Exception e) {
@@ -58,20 +57,20 @@ public class DataGenerator {
         }
     }
 
-    private List<Teacher> generateAndInsertTeachers(Consumer<String> progressConsumer) {
-        progressConsumer.accept(String.format("Generating and inserting %d teachers in batches of %d...", TEACHER_COUNT, BATCH_SIZE));
-        List<Teacher> allTeachers = new ArrayList<>(TEACHER_COUNT);
+    private List<Teacher> generateAndInsertTeachers(int teacherCount, Consumer<String> progressConsumer) {
+        progressConsumer.accept(String.format("Generating and inserting %d teachers in batches of %d...", teacherCount, BATCH_SIZE));
+        List<Teacher> allTeachers = new ArrayList<>(teacherCount);
         List<Teacher> batch = new ArrayList<>(BATCH_SIZE);
-        Set<String> uniqueEmails = new HashSet<>(TEACHER_COUNT);
+        Set<String> uniqueEmails = new HashSet<>(teacherCount);
 
-        while (allTeachers.size() + batch.size() < TEACHER_COUNT) {
+        while (allTeachers.size() + batch.size() < teacherCount) {
             String email = faker.internet().emailAddress();
             if (uniqueEmails.add(email)) {
                 batch.add(new Teacher(null, faker.name().fullName(), email));
                 if (batch.size() == BATCH_SIZE) {
                     repository.batchInsertTeachers(batch);
                     allTeachers.addAll(batch);
-                    progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), TEACHER_COUNT));
+                    progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), teacherCount));
                     batch.clear();
                 }
             }
@@ -79,7 +78,7 @@ public class DataGenerator {
         if (!batch.isEmpty()) {
             repository.batchInsertTeachers(batch);
             allTeachers.addAll(batch);
-            progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), TEACHER_COUNT));
+            progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), teacherCount));
             batch.clear();
         }
         return allTeachers;

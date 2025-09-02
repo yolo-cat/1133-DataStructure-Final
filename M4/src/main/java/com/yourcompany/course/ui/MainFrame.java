@@ -14,6 +14,11 @@ import java.util.concurrent.ExecutionException;
 
 public class MainFrame extends JFrame {
 
+    // Fixed data counts based on the new requirement
+    private static final int STUDENT_COUNT = 10000;
+    private static final int COURSE_COUNT = 1000;
+    private static final int TEACHER_COUNT = 100;
+
     // Services and Generators (Injected)
     private final SearchService sqlService;
     private final InMemorySearchService inMemoryService;
@@ -25,7 +30,7 @@ public class MainFrame extends JFrame {
     private JRadioButton sqlRadioButton;
     private JRadioButton inMemoryRadioButton;
     private JTextField idField;
-    private JComboBox<String> scaleComboBox;
+    private JComboBox<String> enrollmentScaleComboBox; // Renamed for clarity
 
     public MainFrame(SearchService sqlService, InMemorySearchService inMemoryService, DataGenerator dataGenerator) {
         // 1. Receive injected dependencies
@@ -52,15 +57,16 @@ public class MainFrame extends JFrame {
         add(createSchemeSelectionPanel(), BorderLayout.WEST);
     }
 
-    // ... [Rest of the UI methods remain the same] ...
     private JPanel createDataGenerationPanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        panel.setBorder(BorderFactory.createTitledBorder("資料生成"));
+        // Update the title to reflect the fixed data counts
+        panel.setBorder(BorderFactory.createTitledBorder("資料生成 (固定 學生:1萬, 課程:1千, 老師:100)"));
 
-        panel.add(new JLabel("選擇資料規模:"));
+        // Update the label to be more specific
+        panel.add(new JLabel("選擇選課紀錄數:"));
         String[] scales = {"1萬", "10萬", "100萬"};
-        scaleComboBox = new JComboBox<>(scales);
-        panel.add(scaleComboBox);
+        enrollmentScaleComboBox = new JComboBox<>(scales); // Use the renamed variable
+        panel.add(enrollmentScaleComboBox);
 
         JButton generateDataBtn = new JButton("生成資料並載入");
         generateDataBtn.addActionListener(e -> generateData());
@@ -129,22 +135,39 @@ public class MainFrame extends JFrame {
     }
 
     private void generateData() {
-        String selected = (String) scaleComboBox.getSelectedItem();
+        String selected = (String) enrollmentScaleComboBox.getSelectedItem();
         if (selected == null) return;
 
-        int scale = 10000;
-        if (selected.equals("10萬")) scale = 100000;
-        if (selected.equals("100萬")) scale = 1000000;
+        // The selected value now only determines the enrollment count
+        int enrollmentCount;
+        switch (selected) {
+            case "1萬":
+                enrollmentCount = 10000;
+                break;
+            case "10萬":
+                enrollmentCount = 100000;
+                break;
+            case "100萬":
+                enrollmentCount = 1000000;
+                break;
+            default:
+                return; // Should not happen
+        }
 
         resultArea.setText(""); // Clear log area
         statusLabel.setText("正在生成資料，請查看日誌輸出...");
 
-        int finalScale = scale;
         new SwingWorker<Void, String>() {
             @Override
             protected Void doInBackground() throws Exception {
-                // The DataGenerator is now injected
-                dataGenerator.generate(finalScale, this::publish);
+                // Call the new generate method with fixed and variable counts
+                dataGenerator.generate(
+                        STUDENT_COUNT,
+                        COURSE_COUNT,
+                        TEACHER_COUNT,
+                        enrollmentCount,
+                        this::publish
+                );
                 return null;
             }
 
@@ -167,18 +190,24 @@ public class MainFrame extends JFrame {
         new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
-                publishAndAppend("\n開始將資料載入到記憶體 (HashMap)...");
+                publishAndAppend("\n開始將資料載入到記憶體 (HashMap)...\n");
                 inMemoryService.loadData();
                 return null;
             }
 
             @Override
             protected void done() {
-                long memUsageMB = inMemoryService.getMemoryUsageBytes() / (1024 * 1024);
-                publishAndAppend(String.format("記憶體資料載入完成！額外使用記憶體: %d MB\n", memUsageMB));
-                statusLabel.setText("系統就緒。請執行查詢。");
+                try {
+                    get(); // Check for exceptions during load
+                    long memUsageMB = inMemoryService.getMemoryUsageBytes() / (1024 * 1024);
+                    publishAndAppend(String.format("記憶體資料載入完成！額外使用記憶體: %d MB\n", memUsageMB));
+                    statusLabel.setText("系統就緒。請執行查詢。");
+                } catch (InterruptedException | ExecutionException e) {
+                    publishAndAppend("ERROR: Failed to load data into memory: " + e.getMessage() + "\n");
+                    e.printStackTrace();
+                }
             }
-            
+
             private void publishAndAppend(String message) {
                  SwingUtilities.invokeLater(() -> resultArea.append(message));
             }
@@ -227,8 +256,11 @@ public class MainFrame extends JFrame {
                         results = currentService.findStudentsByCourse(finalId);
                         break;
                     case FIND_TOP_10_COURSES:
+                        // Benchmark for top 10 courses is slightly different as it takes no ID
                         long startTime = System.nanoTime();
-                        for(int i=0; i<1000; i++) currentService.findTop10PopularCourses();
+                        for(int i=0; i<1000; i++) {
+                            currentService.findTop10PopularCourses();
+                        }
                         long totalTime = System.nanoTime() - startTime;
                         benchmarkResult = new BenchmarkResult(totalTime, 1000);
                         results = currentService.findTop10PopularCourses();
@@ -258,7 +290,7 @@ public class MainFrame extends JFrame {
                     statusLabel.setText("查詢完成。");
 
                 } catch (InterruptedException | ExecutionException e) {
-                    resultArea.setText("執行查詢時發生錯誤: " + e.getMessage());
+                    resultArea.setText("執行查詢時發生錯誤: " + e.getCause().getMessage());
                     e.printStackTrace();
                 }
             }
