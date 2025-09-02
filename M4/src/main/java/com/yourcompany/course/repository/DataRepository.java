@@ -58,17 +58,16 @@ public class DataRepository {
             for (Teacher teacher : teachers) {
                 pstmt.setString(1, teacher.getName());
                 pstmt.setString(2, teacher.getEmail());
-                pstmt.addBatch();
-            }
-            pstmt.executeBatch();
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                int i = 0;
-                while (generatedKeys.next()) {
-                    teachers.get(i++).setTeacherId(generatedKeys.getLong(1));
+                if (pstmt.executeUpdate() > 0) {
+                    try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            teacher.setTeacherId(generatedKeys.getLong(1));
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Batch insert for Teacher failed.", e);
+            logger.error("Insert for Teacher failed.", e);
         }
     }
 
@@ -80,17 +79,16 @@ public class DataRepository {
                 pstmt.setString(2, student.getLastName());
                 pstmt.setDate(3, new java.sql.Date(student.getDateOfBirth().getTime()));
                 pstmt.setString(4, student.getEmail());
-                pstmt.addBatch();
-            }
-            pstmt.executeBatch();
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                int i = 0;
-                while (generatedKeys.next()) {
-                    students.get(i++).setStudentId(generatedKeys.getLong(1));
+                if (pstmt.executeUpdate() > 0) {
+                    try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            student.setStudentId(generatedKeys.getLong(1));
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Batch insert for Student failed.", e);
+            logger.error("Insert for Student failed.", e);
         }
     }
 
@@ -102,17 +100,16 @@ public class DataRepository {
                 pstmt.setString(2, course.getCourseDescription());
                 pstmt.setInt(3, course.getCredits());
                 pstmt.setLong(4, course.getTeacherId());
-                pstmt.addBatch();
-            }
-            pstmt.executeBatch();
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                int i = 0;
-                while (generatedKeys.next()) {
-                    courses.get(i++).setCourseId(generatedKeys.getLong(1));
+                if (pstmt.executeUpdate() > 0) {
+                    try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                        if (generatedKeys.next()) {
+                            course.setCourseId(generatedKeys.getLong(1));
+                        }
+                    }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Batch insert for Course failed.", e);
+            logger.error("Insert for Course failed.", e);
         }
     }
 
@@ -205,10 +202,10 @@ public class DataRepository {
 
     public List<Enrollment> findAllEnrollments() {
         List<Enrollment> enrollments = new ArrayList<>();
-        String sql = "SELECT enrollment_id, student_id, course_id, enrollment_date FROM Enrollment";
+        String sql = "SELECT student_id, course_id, enrollment_date FROM Enrollment";
         try (Connection conn = dataSource.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                enrollments.add(new Enrollment(rs.getLong("enrollment_id"), rs.getLong("student_id"), rs.getLong("course_id"), rs.getTimestamp("enrollment_date")));
+                enrollments.add(new Enrollment(rs.getLong("student_id"), rs.getLong("course_id"), rs.getTimestamp("enrollment_date")));
             }
         } catch (SQLException e) {
             logger.error("Error finding all enrollments", e);

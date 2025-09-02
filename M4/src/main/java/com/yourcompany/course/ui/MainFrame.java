@@ -34,7 +34,7 @@ public class MainFrame extends JFrame {
         this.dataGenerator = dataGenerator;
 
         // 2. Setup main window
-        setTitle("課程選課系統效能測試 (專案總負責人整合版)");
+        setTitle("課程選課系統效能測試");
         setSize(900, 700);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);

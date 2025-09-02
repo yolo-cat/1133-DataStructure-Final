@@ -27,10 +27,10 @@ CREATE TABLE Course (
 );
 
 CREATE TABLE Enrollment (
-    enrollment_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id BIGINT,
     course_id BIGINT,
     enrollment_date TIMESTAMP NOT NULL,
+    PRIMARY KEY (student_id, course_id),
     FOREIGN KEY (student_id) REFERENCES Student(student_id),
     FOREIGN KEY (course_id) REFERENCES Course(course_id)
 );

@@ -59,60 +59,112 @@ public class DataGenerator {
     }
 
     private List<Teacher> generateAndInsertTeachers(Consumer<String> progressConsumer) {
-        List<Teacher> teachers = new ArrayList<>(TEACHER_COUNT);
-        for (int i = 0; i < TEACHER_COUNT; i++) {
-            teachers.add(new Teacher(null, faker.name().fullName(), faker.internet().emailAddress()));
+        progressConsumer.accept(String.format("Generating and inserting %d teachers in batches of %d...", TEACHER_COUNT, BATCH_SIZE));
+        List<Teacher> allTeachers = new ArrayList<>(TEACHER_COUNT);
+        List<Teacher> batch = new ArrayList<>(BATCH_SIZE);
+        Set<String> uniqueEmails = new HashSet<>(TEACHER_COUNT);
+
+        while (allTeachers.size() + batch.size() < TEACHER_COUNT) {
+            String email = faker.internet().emailAddress();
+            if (uniqueEmails.add(email)) {
+                batch.add(new Teacher(null, faker.name().fullName(), email));
+                if (batch.size() == BATCH_SIZE) {
+                    repository.batchInsertTeachers(batch);
+                    allTeachers.addAll(batch);
+                    progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), TEACHER_COUNT));
+                    batch.clear();
+                }
+            }
         }
-        repository.batchInsertTeachers(teachers);
-        progressConsumer.accept(String.format("Generated and inserted %d teachers.", teachers.size()));
-        return teachers;
+        if (!batch.isEmpty()) {
+            repository.batchInsertTeachers(batch);
+            allTeachers.addAll(batch);
+            progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), TEACHER_COUNT));
+            batch.clear();
+        }
+        return allTeachers;
     }
 
     private List<Student> generateAndInsertStudents(int studentCount, Consumer<String> progressConsumer) {
-        List<Student> students = new ArrayList<>(studentCount);
-        for (int i = 0; i < studentCount; i++) {
-            students.add(new Student(null, faker.name().firstName(), faker.name().lastName(), faker.date().birthday(18, 25), faker.internet().emailAddress()));
+        progressConsumer.accept(String.format("Generating and inserting %d students in batches of %d...", studentCount, BATCH_SIZE));
+        List<Student> allStudents = new ArrayList<>(studentCount);
+        List<Student> batch = new ArrayList<>(BATCH_SIZE);
+        Set<String> uniqueEmails = new HashSet<>(studentCount);
+
+        while (allStudents.size() + batch.size() < studentCount) {
+            String email = faker.internet().emailAddress();
+            if (uniqueEmails.add(email)) {
+                batch.add(new Student(null, faker.name().firstName(), faker.name().lastName(), faker.date().birthday(18, 25), email));
+                if (batch.size() == BATCH_SIZE) {
+                    repository.batchInsertStudents(batch);
+                    allStudents.addAll(batch);
+                    progressConsumer.accept(String.format("Inserted batch. Total students so far: %d/%d", allStudents.size(), studentCount));
+                    batch.clear();
+                }
+            }
         }
-        repository.batchInsertStudents(students);
-        progressConsumer.accept(String.format("Generated and inserted %d students.", students.size()));
-        return students;
+        if (!batch.isEmpty()) {
+            repository.batchInsertStudents(batch);
+            allStudents.addAll(batch);
+            progressConsumer.accept(String.format("Inserted batch. Total students so far: %d/%d", allStudents.size(), studentCount));
+            batch.clear();
+        }
+        return allStudents;
     }
 
     private List<Course> generateAndInsertCourses(int courseCount, List<Teacher> teachers, Consumer<String> progressConsumer) {
-        List<Course> courses = new ArrayList<>(courseCount);
+        progressConsumer.accept(String.format("Generating and inserting %d courses in batches of %d...", courseCount, BATCH_SIZE));
+        List<Course> allCourses = new ArrayList<>(courseCount);
+        List<Course> batch = new ArrayList<>(BATCH_SIZE);
+
         for (int i = 0; i < courseCount; i++) {
             Teacher teacher = teachers.get(random.nextInt(teachers.size()));
-            courses.add(new Course(null, faker.educator().course(), faker.lorem().sentence(), faker.number().numberBetween(1, 5), teacher.getTeacherId()));
+            batch.add(new Course(null, faker.educator().course(), faker.lorem().sentence(), faker.number().numberBetween(1, 5), teacher.getTeacherId()));
+            if (batch.size() == BATCH_SIZE || i == courseCount - 1) {
+                repository.batchInsertCourses(batch);
+                allCourses.addAll(batch);
+                progressConsumer.accept(String.format("Inserted batch. Total courses so far: %d/%d", allCourses.size(), courseCount));
+                batch.clear();
+            }
         }
-        repository.batchInsertCourses(courses);
-        progressConsumer.accept(String.format("Generated and inserted %d courses.", courses.size()));
-        return courses;
+        return allCourses;
     }
 
     private void generateAndInsertEnrollments(int enrollmentCount, List<Student> students, List<Course> courses, Consumer<String> progressConsumer) {
         progressConsumer.accept(String.format("Generating and inserting %d enrollments in batches of %d...", enrollmentCount, BATCH_SIZE));
+        
+        List<Enrollment> batch = new ArrayList<>(BATCH_SIZE);
         int totalGenerated = 0;
-        Set<String> uniqueEnrollments = new HashSet<>(enrollmentCount);
 
-        while (totalGenerated < enrollmentCount) {
-            List<Enrollment> batch = new ArrayList<>(BATCH_SIZE);
-            int batchTargetSize = Math.min(BATCH_SIZE, enrollmentCount - totalGenerated);
+        // Systematic generation to avoid performance issues with random collisions.
+        // This guarantees unique pairs and is significantly faster.
+        outer_loop:
+        for (int i = 0; i < students.size(); i++) {
+            for (int j = 0; j < courses.size(); j++) {
+                if (totalGenerated >= enrollmentCount) {
+                    break outer_loop;
+                }
 
-            while (batch.size() < batchTargetSize) {
-                Student student = students.get(random.nextInt(students.size()));
-                Course course = courses.get(random.nextInt(courses.size()));
-                String key = student.getStudentId() + "-" + course.getCourseId();
+                // A simple mixing strategy to make the data distribution less linear
+                // without the performance cost of full randomness.
+                Student student = students.get(i);
+                Course course = courses.get((i + j) % courses.size());
 
-                if (uniqueEnrollments.add(key)) {
-                    batch.add(new Enrollment(null, student.getStudentId(), course.getCourseId(), faker.date().past(365 * 2, TimeUnit.DAYS)));
+                batch.add(new Enrollment(student.getStudentId(), course.getCourseId(), faker.date().past(365 * 2, TimeUnit.DAYS)));
+                totalGenerated++;
+
+                if (batch.size() == BATCH_SIZE) {
+                    repository.batchInsertEnrollments(batch);
+                    progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, enrollmentCount));
+                    batch.clear();
                 }
             }
+        }
 
-            if (!batch.isEmpty()) {
-                repository.batchInsertEnrollments(batch);
-                totalGenerated += batch.size();
-                progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, enrollmentCount));
-            }
+        // Insert any remaining enrollments in the last batch.
+        if (!batch.isEmpty()) {
+            repository.batchInsertEnrollments(batch);
+            progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, enrollmentCount));
         }
     }
 }
