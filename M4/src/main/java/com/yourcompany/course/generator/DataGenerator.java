@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * FINAL REFACTORED VERSION - Matches the correct database schema.
+ * FINAL REFACTORED VERSION - Smart generator that checks existing data.
  */
 public class DataGenerator {
 
@@ -32,138 +32,128 @@ public class DataGenerator {
 
     public void generate(int studentCount, int courseCount, int teacherCount, int enrollmentCount, Consumer<String> progressConsumer) {
         try {
-            progressConsumer.accept("--- Starting Data Generation Process ---");
+            progressConsumer.accept("--- Starting Smart Data Generation Process ---");
 
-            progressConsumer.accept("Step 1: Setting up database schema...");
+            progressConsumer.accept("\nStep 1: Setting up database schema...");
             repository.setupDatabase();
             progressConsumer.accept("Database schema is ready.");
 
-            progressConsumer.accept("Step 2: Generating and inserting teachers...");
-            List<Teacher> teachers = generateAndInsertTeachers(teacherCount, progressConsumer);
+            List<Teacher> teachers = handleTeachersGeneration(teacherCount, progressConsumer);
+            List<Student> students = handleStudentsGeneration(studentCount, progressConsumer);
+            List<Course> courses = handleCoursesGeneration(courseCount, teachers, progressConsumer);
+            handleEnrollmentsGeneration(enrollmentCount, students, courses, progressConsumer);
 
-            progressConsumer.accept("Step 3: Generating and inserting students...");
-            List<Student> students = generateAndInsertStudents(studentCount, progressConsumer);
-
-            progressConsumer.accept("Step 4: Generating and inserting courses...");
-            List<Course> courses = generateAndInsertCourses(courseCount, teachers, progressConsumer);
-
-            progressConsumer.accept("Step 5: Generating and inserting enrollments...");
-            generateAndInsertEnrollments(enrollmentCount, students, courses, progressConsumer);
-
-            progressConsumer.accept("--- Data Generation Process Completed Successfully! ---");
+            progressConsumer.accept("\n--- Data Generation Process Completed Successfully! ---");
         } catch (Exception e) {
             progressConsumer.accept("ERROR: Data generation failed: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private List<Teacher> generateAndInsertTeachers(int teacherCount, Consumer<String> progressConsumer) {
-        progressConsumer.accept(String.format("Generating and inserting %d teachers in batches of %d...", teacherCount, BATCH_SIZE));
-        List<Teacher> allTeachers = new ArrayList<>(teacherCount);
-        List<Teacher> batch = new ArrayList<>(BATCH_SIZE);
-        Set<String> uniqueEmails = new HashSet<>(teacherCount);
-
-        while (allTeachers.size() + batch.size() < teacherCount) {
-            String email = faker.internet().emailAddress();
-            if (uniqueEmails.add(email)) {
-                batch.add(new Teacher(null, faker.name().fullName(), email));
-                if (batch.size() == BATCH_SIZE) {
-                    repository.batchInsertTeachers(batch);
-                    allTeachers.addAll(batch);
-                    progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), teacherCount));
-                    batch.clear();
+    private List<Teacher> handleTeachersGeneration(int requiredCount, Consumer<String> progressConsumer) {
+        progressConsumer.accept(String.format("\nStep 2: Checking Teacher data (target: %d)...", requiredCount));
+        long currentCount = repository.countTeachers();
+        if (currentCount >= requiredCount) {
+            progressConsumer.accept(String.format("OK. Found %d teachers, skipping generation.", currentCount));
+        } else {
+            long needed = requiredCount - currentCount;
+            progressConsumer.accept(String.format("Found %d teachers, generating %d more...", currentCount, needed));
+            List<Teacher> newTeachers = new ArrayList<>();
+            Set<String> uniqueEmails = new HashSet<>();
+            while (newTeachers.size() < needed) {
+                String email = faker.internet().emailAddress();
+                if (uniqueEmails.add(email)) {
+                    newTeachers.add(new Teacher(null, faker.name().fullName(), email));
                 }
             }
+            repository.batchInsertTeachers(newTeachers);
         }
-        if (!batch.isEmpty()) {
-            repository.batchInsertTeachers(batch);
-            allTeachers.addAll(batch);
-            progressConsumer.accept(String.format("Inserted batch. Total teachers so far: %d/%d", allTeachers.size(), teacherCount));
-            batch.clear();
-        }
-        return allTeachers;
+        return repository.findAllTeachers();
     }
 
-    private List<Student> generateAndInsertStudents(int studentCount, Consumer<String> progressConsumer) {
-        progressConsumer.accept(String.format("Generating and inserting %d students in batches of %d...", studentCount, BATCH_SIZE));
-        List<Student> allStudents = new ArrayList<>(studentCount);
-        List<Student> batch = new ArrayList<>(BATCH_SIZE);
-        Set<String> uniqueEmails = new HashSet<>(studentCount);
-
-        while (allStudents.size() + batch.size() < studentCount) {
-            String email = faker.internet().emailAddress();
-            if (uniqueEmails.add(email)) {
-                batch.add(new Student(null, faker.name().firstName(), faker.name().lastName(), faker.date().birthday(18, 25), email));
-                if (batch.size() == BATCH_SIZE) {
-                    repository.batchInsertStudents(batch);
-                    allStudents.addAll(batch);
-                    progressConsumer.accept(String.format("Inserted batch. Total students so far: %d/%d", allStudents.size(), studentCount));
-                    batch.clear();
+    private List<Student> handleStudentsGeneration(int requiredCount, Consumer<String> progressConsumer) {
+        progressConsumer.accept(String.format("\nStep 3: Checking Student data (target: %d)...", requiredCount));
+        long currentCount = repository.countStudents();
+        if (currentCount >= requiredCount) {
+            progressConsumer.accept(String.format("OK. Found %d students, skipping generation.", currentCount));
+        } else {
+            long needed = requiredCount - currentCount;
+            progressConsumer.accept(String.format("Found %d students, generating %d more...", currentCount, needed));
+            List<Student> newStudents = new ArrayList<>();
+            Set<String> uniqueEmails = new HashSet<>();
+            while (newStudents.size() < needed) {
+                String email = faker.internet().emailAddress();
+                if (uniqueEmails.add(email)) {
+                    newStudents.add(new Student(null, faker.name().firstName(), faker.name().lastName(), faker.date().birthday(18, 25), email));
                 }
             }
+            repository.batchInsertStudents(newStudents);
         }
-        if (!batch.isEmpty()) {
-            repository.batchInsertStudents(batch);
-            allStudents.addAll(batch);
-            progressConsumer.accept(String.format("Inserted batch. Total students so far: %d/%d", allStudents.size(), studentCount));
-            batch.clear();
-        }
-        return allStudents;
+        return repository.findAllStudents();
     }
 
-    private List<Course> generateAndInsertCourses(int courseCount, List<Teacher> teachers, Consumer<String> progressConsumer) {
-        progressConsumer.accept(String.format("Generating and inserting %d courses in batches of %d...", courseCount, BATCH_SIZE));
-        List<Course> allCourses = new ArrayList<>(courseCount);
-        List<Course> batch = new ArrayList<>(BATCH_SIZE);
-
-        for (int i = 0; i < courseCount; i++) {
-            Teacher teacher = teachers.get(random.nextInt(teachers.size()));
-            batch.add(new Course(null, faker.educator().course(), faker.lorem().sentence(), faker.number().numberBetween(1, 5), teacher.getTeacherId()));
-            if (batch.size() == BATCH_SIZE || i == courseCount - 1) {
-                repository.batchInsertCourses(batch);
-                allCourses.addAll(batch);
-                progressConsumer.accept(String.format("Inserted batch. Total courses so far: %d/%d", allCourses.size(), courseCount));
-                batch.clear();
+    private List<Course> handleCoursesGeneration(int requiredCount, List<Teacher> teachers, Consumer<String> progressConsumer) {
+        progressConsumer.accept(String.format("\nStep 4: Checking Course data (target: %d)...", requiredCount));
+        if (teachers.isEmpty()) {
+            progressConsumer.accept("ERROR: Cannot generate courses without teachers.");
+            return new ArrayList<>();
+        }
+        long currentCount = repository.countCourses();
+        if (currentCount >= requiredCount) {
+            progressConsumer.accept(String.format("OK. Found %d courses, skipping generation.", currentCount));
+        } else {
+            long needed = requiredCount - currentCount;
+            progressConsumer.accept(String.format("Found %d courses, generating %d more...", currentCount, needed));
+            List<Course> newCourses = new ArrayList<>();
+            for (int i = 0; i < needed; i++) {
+                Teacher teacher = teachers.get(random.nextInt(teachers.size()));
+                newCourses.add(new Course(null, faker.educator().course(), faker.lorem().sentence(), faker.number().numberBetween(1, 5), teacher.getTeacherId()));
             }
+            repository.batchInsertCourses(newCourses);
         }
-        return allCourses;
+        return repository.findAllCourses();
     }
 
-    private void generateAndInsertEnrollments(int enrollmentCount, List<Student> students, List<Course> courses, Consumer<String> progressConsumer) {
-        progressConsumer.accept(String.format("Generating and inserting %d enrollments in batches of %d...", enrollmentCount, BATCH_SIZE));
-        
+    private void handleEnrollmentsGeneration(int requiredCount, List<Student> students, List<Course> courses, Consumer<String> progressConsumer) {
+        progressConsumer.accept(String.format("\nStep 5: Checking Enrollment data (target: %d)...", requiredCount));
+        if (students.isEmpty() || courses.isEmpty()) {
+            progressConsumer.accept("ERROR: Cannot generate enrollments without students and courses.");
+            return;
+        }
+        long currentCount = repository.countEnrollments();
+        if (currentCount == requiredCount) {
+            progressConsumer.accept(String.format("OK. Found %d enrollments, which matches the target. Skipping generation.", currentCount));
+            return;
+        }
+
+        progressConsumer.accept(String.format("Found %d enrollments. Clearing and regenerating to meet target of %d...", currentCount, requiredCount));
+        repository.truncateEnrollments();
+
         List<Enrollment> batch = new ArrayList<>(BATCH_SIZE);
         int totalGenerated = 0;
 
-        // Systematic generation to avoid performance issues with random collisions.
-        // This guarantees unique pairs and is significantly faster.
         outer_loop:
         for (int i = 0; i < students.size(); i++) {
             for (int j = 0; j < courses.size(); j++) {
-                if (totalGenerated >= enrollmentCount) {
+                if (totalGenerated >= requiredCount) {
                     break outer_loop;
                 }
-
-                // A simple mixing strategy to make the data distribution less linear
-                // without the performance cost of full randomness.
                 Student student = students.get(i);
                 Course course = courses.get((i + j) % courses.size());
-
                 batch.add(new Enrollment(student.getStudentId(), course.getCourseId(), faker.date().past(365 * 2, TimeUnit.DAYS)));
                 totalGenerated++;
 
                 if (batch.size() == BATCH_SIZE) {
                     repository.batchInsertEnrollments(batch);
-                    progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, enrollmentCount));
+                    progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, requiredCount));
                     batch.clear();
                 }
             }
         }
 
-        // Insert any remaining enrollments in the last batch.
         if (!batch.isEmpty()) {
             repository.batchInsertEnrollments(batch);
-            progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, enrollmentCount));
+            progressConsumer.accept(String.format("Inserted batch. Total enrollments so far: %d/%d", totalGenerated, requiredCount));
         }
     }
 }

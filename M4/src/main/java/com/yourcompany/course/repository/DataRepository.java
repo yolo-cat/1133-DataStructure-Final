@@ -52,6 +52,38 @@ public class DataRepository {
         }
     }
 
+    // --- COUNT and TRUNCATE Methods for Smart Generation ---
+
+    private long countFromTable(String tableName) {
+        String sql = "SELECT COUNT(*) FROM " + tableName;
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to count from table {}", tableName, e);
+        }
+        return 0;
+    }
+
+    public long countTeachers() { return countFromTable("Teacher"); }
+    public long countStudents() { return countFromTable("Student"); }
+    public long countCourses() { return countFromTable("Course"); }
+    public long countEnrollments() { return countFromTable("Enrollment"); }
+
+    public void truncateEnrollments() {
+        String sql = "TRUNCATE TABLE Enrollment"; // Or DELETE FROM Enrollment
+        try (Connection conn = dataSource.getConnection(); Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            logger.error("Failed to truncate Enrollment table", e);
+        }
+    }
+
+    // --- END of Smart Generation Methods ---
+
     public void batchInsertTeachers(List<Teacher> teachers) {
         String sql = "INSERT INTO Teacher (name, email) VALUES (?, ?)";
         try (Connection conn = dataSource.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
