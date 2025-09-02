@@ -232,6 +232,21 @@ public class DataRepository {
         return courses;
     }
 
+    public List<Teacher> findAllTeachers() {
+        List<Teacher> teachers = new ArrayList<>();
+        String sql = "SELECT teacher_id, name, email FROM Teacher";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                teachers.add(new Teacher(rs.getLong("teacher_id"), rs.getString("name"), rs.getString("email")));
+            }
+        } catch (SQLException e) {
+            logger.error("Error finding all teachers", e);
+        }
+        return teachers;
+    }
+
     public List<Enrollment> findAllEnrollments() {
         List<Enrollment> enrollments = new ArrayList<>();
         String sql = "SELECT student_id, course_id, enrollment_date FROM Enrollment";
